@@ -74,7 +74,7 @@ RUN openssl req -new -key server.key -out server.csr -subj "/C=US/ST=Denial/L=Sp
 RUN openssl x509 -req -days 1825 -in server.csr -signkey server.key -out server.crt
 
 # expose ports for services
-EXPOSE 50011 50013
+EXPOSE 50010 50020 8000
 
 WORKDIR /app
 
