@@ -15,6 +15,17 @@ RUN apt-get install -y curl
 RUN curl -sL https://deb.nodesource.com/setup_18.x | bash -
 RUN apt-get install -y nodejs
 
+# Create root folder for electrumx
+RUN mkdir /app
+
+# Copy relevant files and folders
+COPY setup.py /app
+COPY requirements.txt /app
+COPY electrumx/ /app/electrumx
+COPY electrumx_server /app
+COPY electrumx_rpc /app
+COPY electrumx_compact_history /app
+
 ENV PACKAGES="\
   build-essential \
   libcurl4-openssl-dev \
@@ -34,60 +45,37 @@ ENV PACKAGES="\
   python3-pip \
   python3-dev \
   libleveldb-dev \
-"
+  libsnappy-dev \
+  liblz4-dev \
+  libbz2-dev \
+  zlib1g-dev \
+  librocksdb-dev"
+
 # Note can remove the opencl and ocl packages above when not building on a system for GPU/mining
 # Included only for reference purposes if this container would be used for mining as well.
-
 RUN apt update && apt install --no-install-recommends -y $PACKAGES  && \
     rm -rf /var/lib/apt/lists/* && \
     apt clean
- 
+
 # Create directory for DB
-RUN mkdir /root/electrumdb
+RUN mkdir /app/electrumxdb
 
-WORKDIR /root
+WORKDIR /app
 
-# ORIGINAL SOURCE
-RUN git clone --depth 1 --branch master https://github.com/radiantblockchain/electrumx.git
-
-WORKDIR /root/electrumx
-
-RUN python3 -m pip install -r requirements.txt
-
-ENV DAEMON_URL=http://dockeruser:dockerpass@localhost:7332/
-ENV COIN=Radiant
-ENV REQUEST_TIMEOUT=60
-ENV DB_DIRECTORY=/root/electrumdb
-ENV DB_ENGINE=leveldb
-
-# SSL VERSION
-ENV SERVICES=tcp://0.0.0.0:50010,SSL://0.0.0.0:50012
-ENV SSL_CERTFILE=/root/electrumdb/server.crt
-ENV SSL_KEYFILE=/root/electrumdb/server.key
-# NO SSL VERSION
-#ENV SERVICES=tcp://0.0.0.0:50010
-ENV HOST=""
-ENV ALLOW_ROOT=true
-ENV CACHE_MB=10000
-ENV MAX_SESSIONS=10000
-ENV MAX_SEND=10000000
-ENV MAX_RECV=10000000
+# required for python rocksdb
+RUN python3 -m pip install Cython==0.29.37
+# install electrumx
+RUN python3 setup.py install
 
 # Create SSL
-WORKDIR /root/electrumdb
+WORKDIR /app/electrumxdb
 RUN openssl genrsa -out server.key 2048
 RUN openssl req -new -key server.key -out server.csr -subj "/C=US/ST=Denial/L=Springfield/O=Dis/CN=radiantblockchain.org"
 RUN openssl x509 -req -days 1825 -in server.csr -signkey server.key -out server.crt
 
-WORKDIR /root/electrumx
+# expose ports for services
+EXPOSE 50011 50013
 
-EXPOSE 50010 50012
+WORKDIR /app
 
-ENTRYPOINT ["python3", "electrumx_server"]
-
-##### DOCKER INFO
-# build it with eg.: `docker build -t electrumx .`
-# run it with eg.:
-# `docker run -d --net=host -e DAEMON_URL="http://youruser:yourpass@localhost:7332" -e REPORT_SERVICES=tcp://example.com:50010 electrumx`
-# for a proper clean shutdown, send TERM signal to the running container eg.: `docker kill --signal="TERM" CONTAINER_ID`
- 
+ENTRYPOINT ["electrumx_server"]
