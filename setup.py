@@ -1,7 +1,7 @@
 import setuptools
-import electrumx
+from Cython.Build import cythonize  # for Cython directives
 
-version = electrumx.version.rsplit(' ', maxsplit=1)[-1]
+version = '1.19'
 
 with open('requirements.txt', 'r') as f:
     requirements = f.read().splitlines()
@@ -10,12 +10,8 @@ setuptools.setup(
     name='electrumX',
     version=version,
     scripts=['electrumx_server', 'electrumx_rpc', 'electrumx_compact_history'],
-    python_requires='>=3.8',
+    python_requires='>=3.10',
     install_requires=requirements,
-    extras_require={
-        'rocksdb': ['python-rocksdb>=0.6.9'],
-        'uvloop': ['uvloop>=0.14'],
-    },
     packages=setuptools.find_packages(include=('electrumx*',)),
     description='ElectrumX Server',
     author='Neil Booth',
